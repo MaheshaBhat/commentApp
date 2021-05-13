@@ -97,6 +97,7 @@ export default function CommentBox({
   renderFooter = () => {},
   modalSize = width * 0.7,
   dragOffset = 0.5,
+  axis="y",
   velocity = 0.04,
   visibleSize = SPACING * 6,
   borderRadius = SPACING,

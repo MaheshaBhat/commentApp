@@ -59,17 +59,24 @@ const absoluteType = {
   y: "absoluteY",
 };
 
-const lockType = {
+export const lockType = {
   NONE: 0,
   LOWER: 1,
   UPPER: -2,
 };
+export const centerSwipeType = {
+  BOTH: 0,
+  LOWER: 1,
+  UPPER: -2,
+};
 
-const positionType = {
+export const positionType = {
   BOTTOM: 0,
   TOP: 1,
   RIGHT: 2,
   LEFT: 3,
+  CENTER_VER: -1,
+  CENTER_HOR: 4,
 };
 const position = {
   0: { top: "auto" },
@@ -97,25 +104,27 @@ export default function CommentBox({
   onClose,
   renderHeader = () => {},
   renderFooter = () => {},
-  actionSheetSize = width * 0.7,
+  actionSheetSize = height,
   dragOffset = 0.5,
   velocity = 0.04,
-  visibleSize = SPACING * 6,
+  visibleSize = height,
   borderRadius = SPACING,
-  actionSheetPosition = positionType.LEFT,
+  actionSheetPosition = positionType.CENTER_VER,
   lock = lockType.NONE,
+  animateFrom = centerSwipeType.LOWER,
 }) {
   const axis = actionSheetPosition <= 1 ? "y" : "x";
   const size = axis === "y" ? height : width;
   const modalSize = Math.min(actionSheetSize, size);
   const panRef = useRef();
   const listRef = useRef();
-  const translate = useSharedValue(modalSize);
+  const from = Math.sign(animateFrom) >= 0 ? 1 : -1;
+  const translate = useSharedValue(modalSize * from);
   const scroll = useSharedValue({ [axis]: DragType.TOP_EDGE });
-  const opacity = useSharedValue(size - modalSize);
+  const opacity = useSharedValue(0);
 
-  const headerAxis = useRef(0);
-  const footerAxis = useRef(modalSize);
+  const headerAxis = useSharedValue(0);
+  const footerAxis = useSharedValue(modalSize);
 
   const styleY = useAnimatedStyle(() => ({
     transform: [{ translateY: translate.value }],
@@ -134,26 +143,27 @@ export default function CommentBox({
     [positionType.RIGHT]: modalSize - visibleSize,
     [positionType.BOTTOM]: modalSize - visibleSize,
     [positionType.TOP]: -modalSize + visibleSize,
+    [positionType.CENTER_HOR]: 0,
+    [positionType.CENTER_VER]: 0,
   };
 
   const eventHandler = useAnimatedGestureHandler({
     onStart: (event, ctx) => {
-      const ax = event[axis];
+      const ax = event.y;
       // allows to drag outside scroll view
 
       ctx.isOutsideScrollView =
-        ax <= headerAxis.current || ax >= modalSize - footerAxis.current;
-
+        ax <= headerAxis.value || ax >= footerAxis.value;
       //keep the state until drag released
       ctx.scroll = scroll.value[axis];
 
       ctx.initialPull =
-        getTranslateFrom[actionSheetPosition] === translate.value;
+        getTranslateFrom[actionSheetPosition] === translate.value &&
+        getTranslateFrom[actionSheetPosition] !== 0;
 
       ctx.initialTranslateValue = translate.value;
     },
     onActive: (event, ctx) => {
-      console.log(event);
       const trx = event[translationType[axis]];
       const trxReverse = event[translationReverseType[axis]];
       ctx.isNotScroll = Math.abs(trxReverse) > Math.abs(trx);
@@ -197,40 +207,52 @@ export default function CommentBox({
       )
         return;
       const trx = event[translationType[axis]];
-      const dt = (trx * modalSize) / (event[[velocityType[axis]]] * size);
+      //const dt = (trx * modalSize) / (event[[velocityType[axis]]] * size);
+      const dt = trx / event[[velocityType[axis]]];
       if (
         ctx.isModal &&
         !ctx.initialPull &&
         (Math.abs(trx) >= dragOffset * modalSize || Math.abs(dt) < velocity)
       ) {
-        let translateTo;
+        let translateTo = size;
         if (
-          actionSheetPosition === positionType.BOTTOM ||
-          actionSheetPosition === positionType.RIGHT
+          actionSheetPosition !== positionType.CENTER_HOR &&
+          actionSheetPosition !== positionType.CENTER_VER
         ) {
-          translateTo =
-            Math.sign(trx) > 0 ? getTranslateFrom[actionSheetPosition] : size;
+          if (
+            actionSheetPosition === positionType.BOTTOM ||
+            actionSheetPosition === positionType.RIGHT
+          ) {
+            translateTo =
+              Math.sign(trx) > 0 ? getTranslateFrom[actionSheetPosition] : size;
+          } else {
+            translateTo =
+              Math.sign(trx) < 0
+                ? Math.sign(trx) * getTranslateFrom[actionSheetPosition]
+                : size;
+          }
+          animate(translate, translateTo * Math.sign(trx), (isFinished) => {
+            if (isFinished && translateTo === size) {
+              opacity.value = 0;
+              translate.value = getTranslateFrom[actionSheetPosition];
+              animate(opacity, 1);
+            }
+          });
         } else {
-          translateTo =
-            Math.sign(trx) < 0
-              ? Math.sign(trx) * getTranslateFrom[actionSheetPosition]
-              : size;
-        }
-
-        animate(translate, translateTo * Math.sign(trx), (isFinished) => {
-          if (isFinished) {
-            if (visibleSize === 0) {
+          animate(translate, translateTo * Math.sign(trx), (isFinished) => {
+            if (isFinished) {
               runOnJS(onClose)();
-              translate.value = translateTo;
-            } else {
-              if (translateTo === size) {
-                opacity.value = 0;
-                translate.value = getTranslateFrom[actionSheetPosition];
-                animate(opacity, 1);
+              if (animateFrom !== 0) {
+                translate.value = translateTo * Math.sign(animateFrom);
               }
             }
-          }
-        });
+          });
+          animate(opacity, 0);
+        }
+        // if(              actionSheetPosition === positionType.CENTER_HOR ||
+        //   actionSheetPosition === positionType.CENTER_VER){
+        //     animate(opacity, 0);
+        // }
       } else {
         animate(translate, 0);
         animate(opacity, 1);
@@ -299,8 +321,7 @@ export default function CommentBox({
         >
           <View
             onLayout={({ nativeEvent }) => {
-              headerAxis.current =
-                nativeEvent.layout[axis === "y" ? "height" : "width"];
+              headerAxis.value = nativeEvent.layout.y;
             }}
           >
             {renderHeader()}
@@ -313,10 +334,9 @@ export default function CommentBox({
             </AnimatedTouchableWithoutFeedback>
           </NativeViewGestureHandler>
           <View
-            onLayout={({ nativeEvent }) =>
-              (footerAxis.current =
-                nativeEvent.layout[axis === "y" ? "height" : "width"])
-            }
+            onLayout={({ nativeEvent }) => {
+              footerAxis.value = nativeEvent.layout.y;
+            }}
           >
             {renderFooter()}
           </View>

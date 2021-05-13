@@ -3,7 +3,6 @@ import { StyleSheet, FlatList, View } from "react-native";
 
 import Header from "./Header";
 import Footer from "./Footer";
-import Divider from "../../../Components/Divider";
 import { SPACING, height } from "../../../Constants";
 import Comment from "../../../Components/Comment";
 import ActionSheet, {
@@ -22,7 +21,7 @@ export default function CommentBox({ show, comments, setCommentState }) {
     <ActionSheet
       renderHeader={() => <Header />}
       renderFooter={() => <Footer />}
-      show={true}
+      show={show}
       onClose={() => setCommentState(false)}
       //height={height / 2}
       //dragOffset={0.5}
@@ -32,7 +31,7 @@ export default function CommentBox({ show, comments, setCommentState }) {
         keyExtractor={(item, index) => item.slice(0, 10) + index}
         renderItem={renderItem}
         contentContainerStyle={styles.contentContainerStyle}
-        //horizontal
+        horizontal
       />
     </ActionSheet>
   );

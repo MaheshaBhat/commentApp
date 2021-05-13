@@ -107,9 +107,9 @@ export default function CommentBox({
   actionSheetSize = height,
   dragOffset = 0.5,
   velocity = 0.04,
-  visibleSize = height,
+  visibleSize = SPACING * 6,
   borderRadius = SPACING,
-  actionSheetPosition = positionType.CENTER_VER,
+  actionSheetPosition = positionType.LEFT,
   lock = lockType.NONE,
   animateFrom = centerSwipeType.LOWER,
 }) {
@@ -120,7 +120,10 @@ export default function CommentBox({
   const listRef = useRef();
   const from = Math.sign(animateFrom) >= 0 ? 1 : -1;
   const translate = useSharedValue(modalSize * from);
-  const scroll = useSharedValue({ [axis]: DragType.TOP_EDGE });
+  const scroll = useSharedValue({
+    [axis]: DragType.TOP_EDGE,
+    [axis + "type"]: "scroll",
+  });
   const opacity = useSharedValue(0);
 
   const headerAxis = useSharedValue(0);
@@ -180,6 +183,7 @@ export default function CommentBox({
         (ctx.scroll === DragType.TOP_EDGE && trx > 0 && isBottomNotLocked) ||
         (ctx.scroll === DragType.BOTTOM_EDGE && trx < 0 && isTopNotLocked) ||
         ctx.initialPull ||
+        scroll.value[axis + "type"] !== "scroll" ||
         (ctx.isOutsideScrollView && trx > 0 && isBottomNotLocked) ||
         (ctx.isOutsideScrollView && trx < 0 && isTopNotLocked) ||
         (ctx.isOutsideScrollView && !isLocked);
@@ -267,7 +271,7 @@ export default function CommentBox({
         stiffness: 150,
       });
       animate(opacity, 1);
-      scroll.value = { [axis]: DragType.TOP_EDGE };
+      scroll.value = { ...scroll.value, [axis]: DragType.TOP_EDGE };
     }
   }, [show]);
 
@@ -329,7 +333,11 @@ export default function CommentBox({
           <NativeViewGestureHandler ref={listRef} simultaneousHandlers={panRef}>
             <AnimatedTouchableWithoutFeedback>
               <ActionSheetProvider scroll={scroll} axis={axis}>
-                {children}
+                {children.type.prototype?.isScrollbarComponent ? (
+                  children
+                ) : (
+                  <View style={{ flex: 1 }}>{children}</View>
+                )}
               </ActionSheetProvider>
             </AnimatedTouchableWithoutFeedback>
           </NativeViewGestureHandler>

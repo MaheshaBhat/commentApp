@@ -1,4 +1,4 @@
-import ActionSheet, { DragType, positionType, lockType } from "./ActionSheet";
+import ActionSheet, { DragType, positionType, lockType, centerSwipeType } from "./ActionSheet";
 import { ActionSheetProvider } from "./ActionSheetProvider";
 import { createScrollbarComponent } from "./createScrollBarComponent";
 import { ActionSheetContext } from "./ActionSheetContext";
@@ -9,6 +9,7 @@ export {
   DragType,
   positionType,
   lockType,
+  centerSwipeType,
   ActionSheetProvider,
   ActionSheetContext,
   createScrollbarComponent,

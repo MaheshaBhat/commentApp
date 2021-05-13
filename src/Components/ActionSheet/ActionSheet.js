@@ -101,8 +101,8 @@ export default function CommentBox({
   velocity = 0.04,
   visibleSize = SPACING * 6,
   borderRadius = SPACING,
-  actionSheetPosition = positionType.RIGHT,
-  lock = lockType.LEFT,
+  actionSheetPosition = positionType.BOTTOM,
+  lock = lockType.TOP,
 }) {
   //const axis=
   const size = axis === "y" ? height : width;

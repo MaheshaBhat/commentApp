@@ -32,6 +32,7 @@ export default function CommentBox({ show, comments, setCommentState }) {
         keyExtractor={(item, index) => item.slice(0, 10) + index}
         renderItem={renderItem}
         contentContainerStyle={styles.contentContainerStyle}
+        //horizontal
       />
     </ActionSheet>
   );

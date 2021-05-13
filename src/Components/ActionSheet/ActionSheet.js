@@ -39,6 +39,10 @@ const translationType = {
   x: "translationX",
   y: "translationY",
 };
+const translationReverseType = {
+  x: "translationY",
+  y: "translationX",
+};
 
 const translateType = {
   x: "translateX",
@@ -57,23 +61,21 @@ const absoluteType = {
 
 const lockType = {
   NONE: 0,
-  BOTTOM: 1,
-  TOP: -2,
-  LEFT: 3,
-  RIGHT: -4,
+  LOWER: 1,
+  UPPER: -2,
 };
 
 const positionType = {
   BOTTOM: 0,
   TOP: 1,
-  LEFT: 2,
-  RIGHT: 3,
+  RIGHT: 2,
+  LEFT: 3,
 };
 const position = {
   0: { top: "auto" },
   1: { bottom: "auto" },
-  2: { right: "auto" },
-  3: { left: "auto" },
+  2: { left: "auto" },
+  3: { right: "auto" },
 };
 
 const animate = (anim, value, callback) => {
@@ -95,17 +97,17 @@ export default function CommentBox({
   onClose,
   renderHeader = () => {},
   renderFooter = () => {},
-  modalSize = width * 0.7,
+  actionSheetSize = width * 0.7,
   dragOffset = 0.5,
-  axis="y",
   velocity = 0.04,
   visibleSize = SPACING * 6,
   borderRadius = SPACING,
-  actionSheetPosition = positionType.BOTTOM,
-  lock = lockType.TOP,
+  actionSheetPosition = positionType.LEFT,
+  lock = lockType.NONE,
 }) {
-  //const axis=
+  const axis = actionSheetPosition <= 1 ? "y" : "x";
   const size = axis === "y" ? height : width;
+  const modalSize = Math.min(actionSheetSize, size);
   const panRef = useRef();
   const listRef = useRef();
   const translate = useSharedValue(modalSize);
@@ -151,13 +153,18 @@ export default function CommentBox({
       ctx.initialTranslateValue = translate.value;
     },
     onActive: (event, ctx) => {
+      console.log(event);
       const trx = event[translationType[axis]];
+      const trxReverse = event[translationReverseType[axis]];
+      ctx.isNotScroll = Math.abs(trxReverse) > Math.abs(trx);
+      if (ctx.isNotScroll) return;
+
       let isTopNotLocked = true;
       let isBottomNotLocked = true;
       const isLocked = lockType.NONE !== lock;
       if (isLocked) {
-        isTopNotLocked = lock === lockType.BOTTOM || lock === lockType.RIGHT;
-        isBottomNotLocked = lock === lockType.TOP || lock === lockType.LEFT;
+        isTopNotLocked = lock === lockType.LOWER;
+        isBottomNotLocked = lock === lockType.UPPER;
       }
       const isModal =
         (ctx.scroll === DragType.TOP_EDGE && trx > 0 && isBottomNotLocked) ||
@@ -168,30 +175,27 @@ export default function CommentBox({
         (ctx.isOutsideScrollView && !isLocked);
 
       ctx.isModal = isModal;
-
-      if (isModal && !ctx.initialPull) {
-        //console.log("normal");
-        translate.value = ctx.initialTranslateValue + trx;
-      } else if (
-        isModal &&
-        translate.value >= 0 &&
-        (actionSheetPosition === positionType.BOTTOM ||
-          actionSheetPosition === positionType.RIGHT)
-      ) {
-        translate.value = ctx.initialTranslateValue + trx;
-      } else if (
-        isModal &&
-        translate.value <= modalSize &&
-        (actionSheetPosition === positionType.TOP ||
-          actionSheetPosition === positionType.LEFT)
-      ) {
-        //console.log("top");F
-        translate.value = ctx.initialTranslateValue + trx;
+      if (isModal) {
+        if (!ctx.initialPull) {
+          translate.value = ctx.initialTranslateValue + trx;
+        } else {
+          if (translate.value >= 0 && actionSheetPosition % 2 === 0) {
+            translate.value = ctx.initialTranslateValue + trx;
+          } else if (
+            translate.value <= modalSize &&
+            actionSheetPosition % 2 === 1
+          ) {
+            translate.value = ctx.initialTranslateValue + trx;
+          }
+        }
       }
     },
     onEnd: (event, ctx) => {
-      if (scroll.value[axis] === DragType.CENTER && !ctx.isModal) return;
-
+      if (
+        ctx.isNotScroll ||
+        (scroll.value[axis] === DragType.CENTER && !ctx.isModal)
+      )
+        return;
       const trx = event[translationType[axis]];
       const dt = (trx * modalSize) / (event[[velocityType[axis]]] * size);
       if (
@@ -227,7 +231,6 @@ export default function CommentBox({
             }
           }
         });
-        //animate(opacity, 0);
       } else {
         animate(translate, 0);
         animate(opacity, 1);
